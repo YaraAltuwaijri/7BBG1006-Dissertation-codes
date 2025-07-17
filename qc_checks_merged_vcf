@@ -1,0 +1,29 @@
+#!/bin/bash
+
+MERGED_FILE="ALDH2_merged.vcf.gz"
+
+
+# 1. Record count
+count=$(bcftools view -H "$MERGED_FILE" | wc -l)
+echo "✅ Variant records: $count"
+
+# 2. Number of FORMAT samples (studies)
+samples=$(bcftools query -l "$MERGED_FILE" | wc -l)
+echo "✅ Number of merged samples/studies: $samples"
+
+# 3. FORMAT header fields
+echo "🔧 FORMAT fields defined in header:"
+zgrep "^##FORMAT" "$MERGED_FILE" | grep -E "ID=ES|ID=SE|ID=LP|ID=AF"
+
+# 4. Check for any duplicate positions
+duplicates=$(bcftools query -f '%CHROM:%POS\n' "$MERGED_FILE" | sort | uniq -d | wc -l)
+echo "❗ Duplicate positions: $duplicates"
+
+# 5. Sample data preview (first 1 variant × all studies)
+echo "🔍 Sample data for first variant:"
+bcftools view "$MERGED_FILE" | grep -v "^#" | head -n 1
+
+# 6. Missing FORMAT values across all studies
+missing=$(bcftools query -f '[%ES\t%SE\t%LP\t%AF\t]\n' "$MERGED_FILE" | grep -P '\t\.\b|\b\.\t|\t\.\t|\.\n' | wc -l)
+echo "❗ Variants with missing FORMAT values in one or more studies: $missing"
+

@@ -1,0 +1,30 @@
+#!/bin/bash
+
+VCF_DIR="/scratch/prj/mmg_data/gwas_catalog/downloads/HarmonizingExampleGwas/ready_backup/region_subset"
+
+
+for file in "$VCF_DIR"/*.vcf.gz; do
+  [ -e "$file" ] || continue
+  echo -e "\n📄 File: $(basename "$file")"
+
+  # 1. Record count
+  count=$(bcftools view -H "$file" | wc -l)
+  echo "✅ Variant records: $count"
+
+  # 2. Sample values
+  echo "🔍 Sample data (first 2 variants):"
+  bcftools query -f '%CHROM\t%POS\t[%ES\t%SE\t%LP\t%AF]\n' "$file" | head -n 2
+
+  # 3. FORMAT header check
+  echo "🔧 FORMAT fields present:"
+  zgrep "^##FORMAT" "$file" | grep -E "ID=ES|ID=SE|ID=LP|ID=AF"
+
+  # 4. Missing FORMAT values
+  missing=$(bcftools query -f '[%ES\t%SE\t%LP\t%AF\n]' "$file" | grep -P '\t\.\b|\b\.\t|\t\.\t|\.\n' | wc -l)
+  echo "❗ Missing ES/SE/LP/AF values in $missing variants"
+
+# 5. Min/Max position
+  min_pos=$(bcftools query -f '%POS\n' "$file" | sort -n | head -n 1)
+  max_pos=$(bcftools query -f '%POS\n' "$file" | sort -n | tail -n 1)
+  echo "🧭 Position range: $min_pos – $max_pos"
+done
